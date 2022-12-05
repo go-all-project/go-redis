@@ -18,6 +18,5 @@ func init() {
 
 func main() {
 	ctx := context.Background()
-
-	example.UseSetGet(rdb, ctx)
+	example.UseTransaction(rdb, ctx)
 }
