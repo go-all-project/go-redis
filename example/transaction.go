@@ -31,6 +31,8 @@ func pipe(db *redis.Client, ctx context.Context) {
 	fmt.Printf("%v\n", incr.Val())
 }
 
+const Retry int = 3
+
 // redis 乐观锁支持，可以通过 watch 监听一些 key,如果没有被其他人修改的话，才可以提交事务
 // 乐观锁：总是假设最好的情况，每次去拿数据的时候都认为别人不会修改，所以不会上锁，只在更新的时候会判断一下在此期间别人有没有去更新这个数据
 // 悲观锁：总是假设最坏的情况，每次去拿数据的时候都认为别人会修改，所以每次在拿数据的时候都会上锁，这样别人想拿这个数据就会阻塞
@@ -61,8 +63,18 @@ func watch(db *redis.Client, ctx context.Context) {
 		return err
 	}
 
-	err := db.Watch(ctx, fn, "key", "key1")
-	if err != nil {
-		return
+	// 操作 Retry 次后不再尝试
+	for i := 0; i < Retry; i++ {
+		err := db.Watch(ctx, fn, "key", "key1")
+
+		if err == nil {
+			break
+		}
+
+		// 如果是事务失败了，就进行重试
+		if err == redis.TxFailedErr {
+			continue
+		}
 	}
+
 }
